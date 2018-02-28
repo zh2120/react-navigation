@@ -88,12 +88,4 @@ describe('actions', () => {
       params,
     });
   });
-
-  it('exports uri action and type', () => {
-    expect(NavigationActions.uri.toString()).toEqual(NavigationActions.URI);
-    expect(NavigationActions.uri({ uri: 'http://google.com' })).toEqual({
-      type: NavigationActions.URI,
-      uri: 'http://google.com',
-    });
-  });
 });

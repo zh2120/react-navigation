@@ -16,6 +16,7 @@ export default (routeConfigs, config = {}) => {
   // Fail fast on invalid route definitions
   validateRouteConfigMap(routeConfigs);
 
+  const { addActionsForRoute } = config;
   const order = config.order || Object.keys(routeConfigs);
   const paths = config.paths || {};
   const initialRouteParams = config.initialRouteParams;
@@ -41,6 +42,13 @@ export default (routeConfigs, config = {}) => {
     );
   }
   return {
+    getActionCreatorsForRoute(route) {
+      return {
+        ...NavigationActions.getActionCreatorsForRoute(route),
+        ...(addActionsForRoute ? addActionsForRoute(route) : {}),
+      };
+    },
+
     getStateForAction(action, inputState) {
       // Establish a default state
       let state = inputState;

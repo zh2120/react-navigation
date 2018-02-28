@@ -2,7 +2,6 @@ import React from 'react';
 import { Linking } from 'react-native';
 import { BackHandler } from './PlatformHelpers';
 import NavigationActions from './NavigationActions';
-import addNavigationHelpers from './addNavigationHelpers';
 import invariant from './utils/invariant';
 
 /**
@@ -204,7 +203,7 @@ export default function createNavigationContainer(Component) {
         const nav = this.state.nav;
         invariant(nav, 'should be set in constructor if stateful');
         if (!this._navigation || this._navigation.state !== nav) {
-          this._navigation = addNavigationHelpers({
+          this._navigation = {
             dispatch: this.dispatch,
             state: nav,
             addListener: (eventName, handler) => {
@@ -218,7 +217,7 @@ export default function createNavigationContainer(Component) {
                 },
               };
             },
-          });
+          };
         }
         navigation = this._navigation;
       }

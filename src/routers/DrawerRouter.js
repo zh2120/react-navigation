@@ -3,10 +3,23 @@ import TabRouter from './TabRouter';
 
 import NavigationActions from '../NavigationActions';
 
+const OPEN_DRAWER = 'DrawerRouter/OPEN_DRAWER';
+const CLOSE_DRAWER = 'DrawerRouter/CLOSE_DRAWER';
+const TOGGLE_DRAWER = 'DrawerRouter/TOGGLE_DRAWER';
+
 export default (routeConfigs, config = {}) => {
   const tabRouter = TabRouter(routeConfigs, config);
   return {
     ...tabRouter,
+
+    getActionCreatorsForRoute(route) {
+      return {
+        openDrawer: () => ({ type: OPEN_DRAWER }),
+        closeDrawer: () => ({ type: CLOSE_DRAWER }),
+        toggleDrawer: () => ({ type: TOGGLE_DRAWER }),
+        ...tabRouter.getActionCreatorsForRoute(route),
+      };
+    },
 
     getStateForAction(action, lastState) {
       const state = lastState || {
@@ -14,26 +27,19 @@ export default (routeConfigs, config = {}) => {
         isDrawerOpen: false,
       };
 
-      // Handle explicit drawer actions
-      if (
-        state.isDrawerOpen &&
-        action.type === NavigationActions.CLOSE_DRAWER
-      ) {
+      if (state.isDrawerOpen && action.type === CLOSE_DRAWER) {
         return {
           ...state,
           isDrawerOpen: false,
         };
       }
-      if (
-        !state.isDrawerOpen &&
-        action.type === NavigationActions.OPEN_DRAWER
-      ) {
+      if (!state.isDrawerOpen && action.type === OPEN_DRAWER) {
         return {
           ...state,
           isDrawerOpen: true,
         };
       }
-      if (action.type === NavigationActions.TOGGLE_DRAWER) {
+      if (action.type === TOGGLE_DRAWER) {
         return {
           ...state,
           isDrawerOpen: !state.isDrawerOpen,

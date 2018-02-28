@@ -8,9 +8,6 @@ module.exports = {
   get StateUtils() {
     return require('./StateUtils').default;
   },
-  get addNavigationHelpers() {
-    return require('./addNavigationHelpers').default;
-  },
   get NavigationActions() {
     return require('./NavigationActions').default;
   },

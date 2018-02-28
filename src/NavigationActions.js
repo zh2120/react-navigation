@@ -51,105 +51,66 @@ const navigate = createAction(NAVIGATE, payload => {
   return action;
 });
 
-const pop = createAction(POP, payload => ({
-  type: POP,
-  n: payload && payload.n,
-  immediate: payload && payload.immediate,
-}));
-
-const popToTop = createAction(POP_TO_TOP, payload => ({
-  type: POP_TO_TOP,
-  immediate: payload && payload.immediate,
-  key: payload && payload.key,
-}));
-
-const push = createAction(PUSH, payload => {
-  const action = {
-    type: PUSH,
-    routeName: payload.routeName,
-  };
-  if (payload.params) {
-    action.params = payload.params;
-  }
-  if (payload.action) {
-    action.action = payload.action;
-  }
-  return action;
-});
-
-const reset = createAction(RESET, payload => ({
-  type: RESET,
-  index: payload.index,
-  key: payload.key,
-  actions: payload.actions,
-}));
-
-const replace = createAction(REPLACE, payload => ({
-  type: REPLACE,
-  key: payload.key,
-  newKey: payload.newKey,
-  params: payload.params,
-  action: payload.action,
-  routeName: payload.routeName,
-  immediate: payload.immediate,
-}));
-
 const setParams = createAction(SET_PARAMS, payload => ({
   type: SET_PARAMS,
   key: payload.key,
   params: payload.params,
 }));
 
-const uri = createAction(URI, payload => ({
-  type: URI,
-  uri: payload.uri,
-}));
-
-const completeTransition = createAction(COMPLETE_TRANSITION, payload => ({
-  type: COMPLETE_TRANSITION,
-  key: payload && payload.key,
-}));
-
-const openDrawer = createAction(OPEN_DRAWER, payload => ({
-  type: OPEN_DRAWER,
-}));
-const closeDrawer = createAction(CLOSE_DRAWER, payload => ({
-  type: CLOSE_DRAWER,
-}));
-const toggleDrawer = createAction(TOGGLE_DRAWER, payload => ({
-  type: TOGGLE_DRAWER,
-}));
+const getActionCreatorsForRoute = route => {
+  return {
+    goBack: key => {
+      let actualizedKey = key;
+      if (key === undefined && navigation.state.key) {
+        invariant(
+          typeof navigation.state.key === 'string',
+          'key should be a string'
+        );
+        actualizedKey = navigation.state.key;
+      }
+      return back({ key: actualizedKey });
+    },
+    navigate: (navigateTo, params, action) => {
+      if (typeof navigateTo === 'string') {
+        return navigate({ routeName: navigateTo, params, action });
+      }
+      invariant(
+        typeof navigateTo === 'object',
+        'Must navigateTo an object or a string'
+      );
+      invariant(
+        params == null,
+        'Params must not be provided to .navigate() when specifying an object'
+      );
+      invariant(
+        action == null,
+        'Child action must not be provided to .navigate() when specifying an object'
+      );
+      return navigate(navigateTo);
+    },
+    setParams: params => {
+      invariant(
+        navigation.state.key && typeof navigation.state.key === 'string',
+        'setParams cannot be called by root navigator'
+      );
+      const key = navigation.state.key;
+      return setParams({ params, key });
+    },
+  };
+};
 
 export default {
   // Action constants
   BACK,
   INIT,
   NAVIGATE,
-  POP,
-  POP_TO_TOP,
-  PUSH,
-  RESET,
-  REPLACE,
   SET_PARAMS,
-  URI,
-  COMPLETE_TRANSITION,
-  OPEN_DRAWER,
-  CLOSE_DRAWER,
-  TOGGLE_DRAWER,
 
   // Action creators
   back,
   init,
   navigate,
-  pop,
-  popToTop,
-  push,
-  reset,
-  replace,
   setParams,
-  uri,
-  completeTransition,
-  openDrawer,
-  closeDrawer,
-  toggleDrawer,
+
+  getActionCreatorsForRoute,
 };

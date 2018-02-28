@@ -2,7 +2,6 @@ import React from 'react';
 import { Dimensions } from 'react-native';
 import DrawerLayout from 'react-native-drawer-layout-polyfill';
 
-import addNavigationHelpers from '../../addNavigationHelpers';
 import DrawerSidebar from './DrawerSidebar';
 import getChildEventSubscriber from '../../getChildEventSubscriber';
 
