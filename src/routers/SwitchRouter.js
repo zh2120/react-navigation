@@ -76,6 +76,10 @@ export default (routeConfigs, config = {}) => {
     },
 
     getNextState(prevState, possibleNextState) {
+      if (!prevState) {
+        return possibleNextState;
+      }
+
       let nextState;
       if (prevState.index !== possibleNextState.index && resetOnBlur) {
         const prevRouteName = prevState.routes[prevState.index].routeName;
@@ -141,15 +145,13 @@ export default (routeConfigs, config = {}) => {
 
       // Handle tab changing. Do this after letting the current tab try to
       // handle the action, to allow inner children to change first
-      if (backBehavior !== 'none') {
-        const isBackEligible =
-          action.key == null || action.key === activeChildLastState.key;
-        if (action.type === NavigationActions.BACK) {
-          if (isBackEligible && shouldBackNavigateToInitialRoute) {
-            activeChildIndex = initialRouteIndex;
-          } else {
-            return state;
-          }
+      const isBackEligible =
+        action.key == null || action.key === activeChildLastState.key;
+      if (action.type === NavigationActions.BACK) {
+        if (isBackEligible && shouldBackNavigateToInitialRoute) {
+          activeChildIndex = initialRouteIndex;
+        } else {
+          return state;
         }
       }
 
