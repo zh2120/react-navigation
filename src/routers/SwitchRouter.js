@@ -167,9 +167,8 @@ export default (routeConfigs, config = {}) => {
         });
         if (didNavigate) {
           const childState = state.routes[activeChildIndex];
-          let newChildState;
-
           const childRouter = childRouters[action.routeName];
+          let newChildState;
 
           if (action.action) {
             newChildState = childRouter
@@ -225,7 +224,7 @@ export default (routeConfigs, config = {}) => {
       } else if (didNavigate && !inputState) {
         return state;
       } else if (didNavigate) {
-        return null;
+        return { ...state };
       }
 
       // Let other children handle it and switch to the first child that returns a new state
