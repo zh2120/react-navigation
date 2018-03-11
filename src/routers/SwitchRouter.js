@@ -98,7 +98,11 @@ export default (routeConfigs, config = {}) => {
 
     getStateForAction(action, inputState) {
       let prevState = inputState ? { ...inputState } : inputState;
-      let state = inputState || this.getInitialState();
+      // Ignore the input state if this is the INIT action, because it can be used to get a fresh state
+      let state =
+        action.type === NavigationActions.INIT
+          ? this.getInitialState()
+          : inputState || this.getInitialState();
       let activeChildIndex = state.index;
 
       if (action.type === NavigationActions.INIT) {

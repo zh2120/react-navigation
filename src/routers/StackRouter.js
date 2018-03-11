@@ -154,7 +154,7 @@ export default (routeConfigs, stackConfig = {}) => {
 
     getStateForAction(action, state) {
       // Set up the initial state if needed
-      if (!state) {
+      if (!state || action.type === NavigationActions.INIT) {
         return getInitialState(action);
       }
 

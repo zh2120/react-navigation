@@ -1,9 +1,16 @@
 import React from 'react';
-import { Linking } from 'react-native';
+import { Linking, AsyncStorage } from 'react-native';
 import { BackHandler } from './PlatformHelpers';
 import NavigationActions from './NavigationActions';
 import addNavigationHelpers from './addNavigationHelpers';
 import invariant from './utils/invariant';
+
+// We keep a global flag to catch errors during the state persistence hydrating scenario.
+// The innermost navigator who catches the error will dispatch a new init action.
+let _reactNavigationIsHydratingState = false;
+// Unfortunate to use global state here, but it seems necessesary for the time being. There seems to
+// be some problems with cascading componentDidCatch handlers. Ideally the inner non-stateful navigator
+// catches the error and re-throws it, to be caught by the top-level stateful navigator.
 
 /**
  * Create an HOC that injects the navigation and manages the navigation state
@@ -41,14 +48,32 @@ export default function createNavigationContainer(Component) {
       }
 
       this.state = {
-        nav: this._isStateful()
-          ? Component.router.getStateForAction(this._initialAction)
-          : null,
+        nav: null,
       };
     }
 
+    _renderLoading() {
+      // don't use a default prop for renderLoading, because it fires an invariant for controlled navigators
+      return this.props.renderLoading ? this.props.renderLoading() : null;
+    }
+    _getStorageKey() {
+      // a null storageKey prop tells the container to NOT persist, so we explicitly check for undefined
+      if (this.props.storageKey === undefined) {
+        return 'ReactNavigationStorage';
+      }
+      return this.props.storageKey;
+    }
     _isStateful() {
       return !this.props.navigation;
+    }
+    componentDidCatch(e, errorInfo) {
+      if (_reactNavigationIsHydratingState) {
+        _reactNavigationIsHydratingState = false;
+        console.warn(
+          'Uncaught exception while starting app from persisted navigation state! Trying to render again with a fresh navigation state..'
+        );
+        this.dispatch(NavigationActions.init());
+      }
     }
 
     _validateProps(props) {
@@ -138,7 +163,7 @@ export default function createNavigationContainer(Component) {
       }
     }
 
-    componentDidMount() {
+    async componentDidMount() {
       this._isMounted = true;
       if (!this._isStateful()) {
         return;
@@ -146,17 +171,60 @@ export default function createNavigationContainer(Component) {
 
       Linking.addEventListener('url', this._handleOpenURL);
 
-      Linking.getInitialURL().then(url => url && this._handleOpenURL({ url }));
+      const startupStateJSON =
+        this._getStorageKey() &&
+        (await AsyncStorage.getItem(this._getStorageKey()));
+      let startupState = null;
+      try {
+        startupState = startupStateJSON && JSON.parse(startupStateJSON);
+        _reactNavigationIsHydratingState = true;
+      } catch (e) {}
 
-      this._actionEventSubscribers.forEach(subscriber =>
-        subscriber({
-          type: 'action',
-          action: this._initialAction,
-          state: this.state.nav,
-          lastState: null,
-        })
-      );
+      let action = this._initialAction;
+      if (!startupState) {
+        !!process.env.REACT_NAV_LOGGING &&
+          console.log('Init new Navigation State');
+        startupState = Component.router.getStateForAction(action);
+      }
+
+      const url = await Linking.getInitialURL();
+      const parsedUrl = url && this._urlToPathAndParams(url);
+      if (parsedUrl) {
+        const { path, params } = parsedUrl;
+        const urlAction = Component.router.getActionForPathAndParams(
+          path,
+          params
+        );
+        if (urlAction) {
+          !!process.env.REACT_NAV_LOGGING &&
+            console.log('Applying Navigation Action for Initial URL:', url);
+          action = urlAction;
+          startupState = Component.router.getStateForAction(
+            urlAction,
+            startupState
+          );
+        }
+      }
+      this.setState({ nav: startupState }, () => {
+        _reactNavigationIsHydratingState = false;
+        this._actionEventSubscribers.forEach(subscriber =>
+          subscriber({
+            type: 'action',
+            action,
+            state: this.state.nav,
+            lastState: null,
+          })
+        );
+      });
     }
+
+    _persistNavigationState = async nav => {
+      const storageKey = this._getStorageKey();
+      if (!storageKey) {
+        return;
+      }
+      await AsyncStorage.setItem(storageKey, JSON.stringify(nav));
+    };
 
     componentWillUnmount() {
       this._isMounted = false;
@@ -166,9 +234,9 @@ export default function createNavigationContainer(Component) {
 
     // Per-tick temporary storage for state.nav
 
-    dispatch = action => {
-      if (!this._isStateful()) {
-        return false;
+    dispatch = async action => {
+      if (this.props.navigation) {
+        return await this.props.navigation.dispatch(action);
       }
       this._nav = this._nav || this.state.nav;
       const oldNav = this._nav;
@@ -190,6 +258,7 @@ export default function createNavigationContainer(Component) {
         this.setState({ nav }, () => {
           this._onNavigationStateChange(oldNav, nav, action);
           dispatchActionEvents();
+          this._persistNavigationState(nav);
         });
         return true;
       } else {
@@ -202,7 +271,9 @@ export default function createNavigationContainer(Component) {
       let navigation = this.props.navigation;
       if (this._isStateful()) {
         const nav = this.state.nav;
-        invariant(nav, 'should be set in constructor if stateful');
+        if (!nav) {
+          return this._renderLoading();
+        }
         if (!this._navigation || this._navigation.state !== nav) {
           this._navigation = addNavigationHelpers({
             dispatch: this.dispatch,
