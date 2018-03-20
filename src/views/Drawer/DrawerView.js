@@ -4,7 +4,7 @@ import DrawerLayout from 'react-native-drawer-layout-polyfill';
 
 import addNavigationHelpers from '../../addNavigationHelpers';
 import DrawerSidebar from './DrawerSidebar';
-import NavigationActions from '../../NavigationActions';
+import getChildEventSubscriber from '../../getChildEventSubscriber';
 
 /**
  * Component that renders the drawer.
@@ -12,12 +12,16 @@ import NavigationActions from '../../NavigationActions';
 export default class DrawerView extends React.PureComponent {
   state = {
     drawerWidth:
-      typeof this.props.navigationConfig.drawerWidth === 'function'
-        ? this.props.navigationConfig.drawerWidth()
-        : this.props.navigationConfig.drawerWidth,
+      typeof this.props.drawerWidth === 'function'
+        ? this.props.drawerWidth()
+        : this.props.drawerWidth,
   };
 
-  componentDidMount() {
+  _childEventSubscribers = {};
+
+  componentWillMount() {
+    this._updateScreenNavigation(this.props.navigation);
+
     Dimensions.addEventListener('change', this._updateWidth);
   }
 
@@ -25,61 +29,130 @@ export default class DrawerView extends React.PureComponent {
     Dimensions.removeEventListener('change', this._updateWidth);
   }
 
-  componentDidUpdate(prevProps, prevState) {
-    const { isDrawerOpen } = this.props.navigation.state;
-    const wasDrawerOpen = prevProps.navigation.state.isDrawerOpen;
+  componentDidUpdate() {
+    const activeKeys = this.props.navigation.state.routes.map(
+      route => route.key
+    );
+    Object.keys(this._childEventSubscribers).forEach(key => {
+      if (!activeKeys.includes(key)) {
+        delete this._childEventSubscribers[key];
+      }
+    });
+  }
 
-    if (isDrawerOpen && !wasDrawerOpen) {
-      this._drawer.openDrawer();
-    } else if (wasDrawerOpen && !isDrawerOpen) {
-      this._drawer.closeDrawer();
+  componentWillReceiveProps(nextProps) {
+    if (
+      this.props.navigation.state.index !== nextProps.navigation.state.index
+    ) {
+      const {
+        drawerOpenRoute,
+        drawerCloseRoute,
+        drawerToggleRoute,
+      } = this.props;
+      const { routes, index } = nextProps.navigation.state;
+      if (routes[index].routeName === drawerOpenRoute) {
+        this._drawer.openDrawer();
+      } else if (routes[index].routeName === drawerToggleRoute) {
+        if (this.props.navigation.state.index === 0) {
+          this.props.navigation.navigate(drawerOpenRoute);
+        } else {
+          this.props.navigation.navigate(drawerCloseRoute);
+        }
+      } else {
+        this._drawer.closeDrawer();
+      }
     }
+    this._updateScreenNavigation(nextProps.navigation);
   }
 
   _handleDrawerOpen = () => {
-    const { navigation } = this.props;
-    navigation.dispatch({ type: NavigationActions.OPEN_DRAWER });
+    const { navigation, drawerOpenRoute } = this.props;
+    const { routes, index } = navigation.state;
+    if (routes[index].routeName !== drawerOpenRoute) {
+      this.props.navigation.navigate(drawerOpenRoute);
+    }
   };
 
   _handleDrawerClose = () => {
-    const { navigation } = this.props;
-    navigation.dispatch({ type: NavigationActions.CLOSE_DRAWER });
+    const { navigation, drawerCloseRoute } = this.props;
+    const { routes, index } = navigation.state;
+    if (routes[index].routeName !== drawerCloseRoute) {
+      this.props.navigation.navigate(drawerCloseRoute);
+    }
+  };
+
+  _isRouteFocused = route => () => {
+    const { state } = this.props.navigation;
+    const focusedRoute = state.routes[state.index];
+    return route === focusedRoute;
+  };
+
+  _updateScreenNavigation = navigation => {
+    const { drawerCloseRoute } = this.props;
+    const navigationState = navigation.state.routes.find(
+      route => route.routeName === drawerCloseRoute
+    );
+    if (
+      this._screenNavigationProp &&
+      this._screenNavigationProp.state === navigationState
+    ) {
+      return;
+    }
+
+    if (!this._childEventSubscribers[navigationState.key]) {
+      this._childEventSubscribers[
+        navigationState.key
+      ] = getChildEventSubscriber(navigation.addListener, navigationState.key);
+    }
+
+    this._screenNavigationProp = addNavigationHelpers({
+      dispatch: navigation.dispatch,
+      state: navigationState,
+      isFocused: () => this._isRouteFocused(navigationState),
+      addListener: this._childEventSubscribers[navigationState.key],
+    });
   };
 
   _updateWidth = () => {
     const drawerWidth =
-      typeof this.props.navigationConfig.drawerWidth === 'function'
-        ? this.props.navigationConfig.drawerWidth()
-        : this.props.navigationConfig.drawerWidth;
+      typeof this.props.drawerWidth === 'function'
+        ? this.props.drawerWidth()
+        : this.props.drawerWidth;
 
     if (this.state.drawerWidth !== drawerWidth) {
       this.setState({ drawerWidth });
     }
   };
 
-  _renderNavigationView = () => {
-    return (
-      <DrawerSidebar
-        screenProps={this.props.screenProps}
-        navigation={this.props.navigation}
-        descriptors={this.props.descriptors}
-        contentComponent={this.props.navigationConfig.contentComponent}
-        contentOptions={this.props.navigationConfig.contentOptions}
-        drawerPosition={this.props.navigationConfig.drawerPosition}
-        style={this.props.navigationConfig.style}
-        {...this.props.navigationConfig}
-      />
+  _getNavigationState = navigation => {
+    const { drawerCloseRoute } = this.props;
+    const navigationState = navigation.state.routes.find(
+      route => route.routeName === drawerCloseRoute
     );
+    return navigationState;
   };
 
+  _renderNavigationView = () => (
+    <DrawerSidebar
+      screenProps={this.props.screenProps}
+      navigation={this._screenNavigationProp}
+      router={this.props.router}
+      contentComponent={this.props.contentComponent}
+      contentOptions={this.props.contentOptions}
+      drawerPosition={this.props.drawerPosition}
+      style={this.props.style}
+    />
+  );
+
   render() {
-    const { state } = this.props.navigation;
-    const activeKey = state.routes[state.index].key;
-    const descriptor = this.props.descriptors[activeKey];
+    const DrawerScreen = this.props.router.getComponentForRouteName(
+      this.props.drawerCloseRoute
+    );
 
-    const DrawerScreen = descriptor.getComponent();
-
-    const { drawerLockMode } = descriptor.options;
+    const config = this.props.router.getScreenOptions(
+      this._screenNavigationProp,
+      this.props.screenProps
+    );
 
     return (
       <DrawerLayout
@@ -88,25 +161,23 @@ export default class DrawerView extends React.PureComponent {
         }}
         drawerLockMode={
           (this.props.screenProps && this.props.screenProps.drawerLockMode) ||
-          this.props.navigationConfig.drawerLockMode
+          (config && config.drawerLockMode)
         }
-        drawerBackgroundColor={
-          this.props.navigationConfig.drawerBackgroundColor
-        }
+        drawerBackgroundColor={this.props.drawerBackgroundColor}
         drawerWidth={this.state.drawerWidth}
         onDrawerOpen={this._handleDrawerOpen}
         onDrawerClose={this._handleDrawerClose}
-        useNativeAnimations={this.props.navigationConfig.useNativeAnimations}
+        useNativeAnimations={this.props.useNativeAnimations}
         renderNavigationView={this._renderNavigationView}
         drawerPosition={
-          this.props.navigationConfig.drawerPosition === 'right'
+          this.props.drawerPosition === 'right'
             ? DrawerLayout.positions.Right
             : DrawerLayout.positions.Left
         }
       >
         <DrawerScreen
           screenProps={this.props.screenProps}
-          navigation={descriptor.navigation}
+          navigation={this._screenNavigationProp}
         />
       </DrawerLayout>
     );

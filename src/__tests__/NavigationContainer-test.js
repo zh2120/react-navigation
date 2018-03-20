@@ -4,7 +4,7 @@ import 'react-native';
 import renderer from 'react-test-renderer';
 
 import NavigationActions from '../NavigationActions';
-import StackNavigator from '../navigators/createStackNavigator';
+import StackNavigator from '../navigators/StackNavigator';
 
 const FooScreen = () => <div />;
 const BarScreen = () => <div />;

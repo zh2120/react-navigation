@@ -4,6 +4,7 @@ import createConfigGetter from './createConfigGetter';
 
 import NavigationActions from '../NavigationActions';
 import validateRouteConfigMap from './validateRouteConfigMap';
+import getScreenConfigDeprecated from './getScreenConfigDeprecated';
 
 function childrenUpdateWithoutSwitchingIndex(actionType) {
   return [
@@ -27,6 +28,7 @@ export default (routeConfigs, config = {}) => {
     : true;
   const initialRouteIndex = order.indexOf(initialRouteName);
   const childRouters = {};
+
   order.forEach(routeName => {
     const routeConfig = routeConfigs[routeName];
     paths[routeName] =
@@ -75,10 +77,6 @@ export default (routeConfigs, config = {}) => {
     },
 
     getNextState(prevState, possibleNextState) {
-      if (!prevState) {
-        return possibleNextState;
-      }
-
       let nextState;
       if (prevState.index !== possibleNextState.index && resetOnBlur) {
         const prevRouteName = prevState.routes[prevState.index].routeName;
@@ -144,20 +142,23 @@ export default (routeConfigs, config = {}) => {
 
       // Handle tab changing. Do this after letting the current tab try to
       // handle the action, to allow inner children to change first
-      const isBackEligible =
-        action.key == null || action.key === activeChildLastState.key;
-      if (action.type === NavigationActions.BACK) {
-        if (isBackEligible && shouldBackNavigateToInitialRoute) {
-          activeChildIndex = initialRouteIndex;
-        } else {
-          return state;
+      if (backBehavior !== 'none') {
+        const isBackEligible =
+          action.key == null || action.key === activeChildLastState.key;
+        if (action.type === NavigationActions.BACK) {
+          if (isBackEligible && shouldBackNavigateToInitialRoute) {
+            activeChildIndex = initialRouteIndex;
+          } else {
+            return state;
+          }
         }
       }
 
       let didNavigate = false;
       if (action.type === NavigationActions.NAVIGATE) {
+        const navigateAction = action;
         didNavigate = !!order.find((childId, i) => {
-          if (childId === action.routeName) {
+          if (childId === navigateAction.routeName) {
             activeChildIndex = i;
             return true;
           }
@@ -165,14 +166,15 @@ export default (routeConfigs, config = {}) => {
         });
         if (didNavigate) {
           const childState = state.routes[activeChildIndex];
-          const childRouter = childRouters[action.routeName];
           let newChildState;
+
+          const childRouter = childRouters[action.routeName];
 
           if (action.action) {
             newChildState = childRouter
               ? childRouter.getStateForAction(action.action, childState)
               : null;
-          } else if (!action.action && !childRouter && action.params) {
+          } else if (!childRouter && action.params) {
             newChildState = {
               ...childState,
               params: {
@@ -190,12 +192,6 @@ export default (routeConfigs, config = {}) => {
               routes,
               index: activeChildIndex,
             });
-          } else if (
-            !newChildState &&
-            state.index === activeChildIndex &&
-            prevState
-          ) {
-            return null;
           }
         }
       }
@@ -228,7 +224,7 @@ export default (routeConfigs, config = {}) => {
       } else if (didNavigate && !inputState) {
         return state;
       } else if (didNavigate) {
-        return { ...state };
+        return null;
       }
 
       // Let other children handle it and switch to the first child that returns a new state
@@ -358,5 +354,7 @@ export default (routeConfigs, config = {}) => {
       routeConfigs,
       config.navigationOptions
     ),
+
+    getScreenConfig: getScreenConfigDeprecated,
   };
 };

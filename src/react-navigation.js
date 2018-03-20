@@ -19,41 +19,17 @@ module.exports = {
   get createNavigator() {
     return require('./navigators/createNavigator').default;
   },
-  get createStackNavigator() {
-    return require('./navigators/createStackNavigator').default;
-  },
   get StackNavigator() {
-    console.warn(
-      'The StackNavigator function name is deprecated, please use createStackNavigator instead'
-    );
-    return require('./navigators/createStackNavigator').default;
-  },
-  get createSwitchNavigator() {
-    return require('./navigators/createSwitchNavigator').default;
+    return require('./navigators/StackNavigator').default;
   },
   get SwitchNavigator() {
-    console.warn(
-      'The SwitchNavigator function name is deprecated, please use createSwitchNavigator instead'
-    );
-    return require('./navigators/createSwitchNavigator').default;
-  },
-  get createTabNavigator() {
-    return require('./navigators/createTabNavigator').default;
+    return require('./navigators/SwitchNavigator').default;
   },
   get TabNavigator() {
-    console.warn(
-      'The TabNavigator function name is deprecated, please use createTabNavigator instead'
-    );
-    return require('./navigators/createTabNavigator').default;
-  },
-  get createDrawerNavigator() {
-    return require('./navigators/createDrawerNavigator').default;
+    return require('./navigators/TabNavigator').default;
   },
   get DrawerNavigator() {
-    console.warn(
-      'The DrawerNavigator function name is deprecated, please use createDrawerNavigator instead'
-    );
-    return require('./navigators/createDrawerNavigator').default;
+    return require('./navigators/DrawerNavigator').default;
   },
 
   // Routers
@@ -71,11 +47,14 @@ module.exports = {
   get Transitioner() {
     return require('./views/Transitioner').default;
   },
-  get StackView() {
-    return require('./views/StackView/StackView').default;
+  get CardStackTransitioner() {
+    return require('./views/CardStack/CardStackTransitioner').default;
   },
-  get StackViewCard() {
-    return require('./views/StackView/StackViewCard').default;
+  get CardStack() {
+    return require('./views/CardStack/CardStack').default;
+  },
+  get Card() {
+    return require('./views/CardStack/Card').default;
   },
   get SafeAreaView() {
     return require('react-native-safe-area-view').default;

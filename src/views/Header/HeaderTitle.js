@@ -4,22 +4,22 @@ import { Text, View, Platform, StyleSheet, Animated } from 'react-native';
 const AnimatedText = Animated.Text;
 
 const HeaderTitle = ({ style, ...rest }) => (
-  <AnimatedText
-    numberOfLines={1}
-    {...rest}
-    style={[styles.title, style]}
-    accessibilityTraits="header"
-  />
+    <AnimatedText
+        numberOfLines={1}
+        {...rest}
+        style={[styles.title, style]}
+        accessibilityTraits="header"
+    />
 );
 
 const styles = StyleSheet.create({
-  title: {
-    fontSize: 18,
-    fontWeight: '400',
-    color: '#494949',
-    textAlign: 'center',
-    marginHorizontal: 16,
-  },
+    title: {
+        fontSize: 18,
+        fontWeight: '400',
+        color: '#494949',
+        textAlign: 'center',
+        marginHorizontal: 16,
+    },
 });
 
 export default HeaderTitle;
