@@ -20,7 +20,7 @@ import withOrientation from '../withOrientation';
 
 const APPBAR_HEIGHT = Platform.OS === 'ios' ? 44 : 56;
 const STATUSBAR_HEIGHT = Platform.OS === 'ios' ? 20 : 0;
-const TITLE_OFFSET = Platform.OS === 'ios' ? 70 : 56;
+const TITLE_OFFSET = 0;
 
 const getAppBarHeight = isLandscape => {
   return Platform.OS === 'ios'
@@ -47,11 +47,11 @@ class Header extends React.PureComponent {
   };
 
   _getHeaderTitleString(scene) {
-    const options = scene.descriptor.options;
-    if (typeof options.headerTitle === 'string') {
-      return options.headerTitle;
+    const sceneOptions = this.props.getScreenDetails(scene).options;
+    if (typeof sceneOptions.headerTitle === 'string') {
+      return sceneOptions.headerTitle;
     }
-    return options.title;
+    return sceneOptions.title;
   }
 
   _getLastScene(scene) {
@@ -63,7 +63,7 @@ class Header extends React.PureComponent {
     if (!lastScene) {
       return null;
     }
-    const { headerBackTitle } = lastScene.descriptor.options;
+    const {headerBackTitle} = this.props.getScreenDetails(lastScene).options;
     if (headerBackTitle || headerBackTitle === null) {
       return headerBackTitle;
     }
@@ -75,33 +75,40 @@ class Header extends React.PureComponent {
     if (!lastScene) {
       return null;
     }
-    return lastScene.descriptor.options.headerTruncatedBackTitle;
+    return this.props.getScreenDetails(lastScene).options
+      .headerTruncatedBackTitle;
   }
 
+  _navigateBack = () => {
+    requestAnimationFrame(() => {
+      this.props.navigation.goBack(this.props.scene.route.key);
+    });
+  };
+
   _renderTitleComponent = props => {
-    const { options } = props.scene.descriptor;
-    const headerTitle = options.headerTitle;
+    const details = this.props.getScreenDetails(props.scene);
+    const headerTitle = details.options.headerTitle;
     if (React.isValidElement(headerTitle)) {
       return headerTitle;
     }
     const titleString = this._getHeaderTitleString(props.scene);
 
-    const titleStyle = options.headerTitleStyle;
-    const color = options.headerTintColor;
-    const allowFontScaling = options.headerTitleAllowFontScaling;
+    const titleStyle = details.options.headerTitleStyle;
+    const color = details.options.headerTintColor;
+    const allowFontScaling = details.options.headerTitleAllowFontScaling;
 
     // On iOS, width of left/right components depends on the calculated
     // size of the title.
     const onLayoutIOS =
       Platform.OS === 'ios'
         ? e => {
-            this.setState({
-              widths: {
-                ...this.state.widths,
-                [props.scene.key]: e.nativeEvent.layout.width,
-              },
-            });
-          }
+          this.setState({
+            widths: {
+              ...this.state.widths,
+              [props.scene.key]: e.nativeEvent.layout.width,
+            },
+          });
+        }
         : undefined;
 
     const RenderedHeaderTitle =
@@ -112,7 +119,7 @@ class Header extends React.PureComponent {
       <RenderedHeaderTitle
         onLayout={onLayoutIOS}
         allowFontScaling={allowFontScaling == null ? true : allowFontScaling}
-        style={[color ? { color } : null, titleStyle]}
+        style={[color ? {color} : null, titleStyle]}
       >
         {titleString}
       </RenderedHeaderTitle>
@@ -120,7 +127,8 @@ class Header extends React.PureComponent {
   };
 
   _renderLeftComponent = props => {
-    const { options } = props.scene.descriptor;
+    const {options} = this.props.getScreenDetails(props.scene);
+
     if (
       React.isValidElement(options.headerLeft) ||
       options.headerLeft === null
@@ -140,18 +148,12 @@ class Header extends React.PureComponent {
       ? (this.props.layout.initWidth - this.state.widths[props.scene.key]) / 2
       : undefined;
     const RenderedLeftComponent = options.headerLeft || HeaderBackButton;
-    const goBack = () => {
-      // Go back on next tick because button ripple effect needs to happen on Android
-      requestAnimationFrame(() => {
-        this.props.navigation.goBack(props.scene.descriptor.key);
-      });
-    };
     return (
       <RenderedLeftComponent
-        onPress={goBack}
+        onPress={this._navigateBack}
         pressColorAndroid={options.headerPressColorAndroid}
         tintColor={options.headerTintColor}
-        backImage={options.headerBackImage}
+        buttonImage={options.headerBackImage}
         title={backButtonTitle}
         truncatedTitle={truncatedBackButtonTitle}
         titleStyle={options.headerBackTitleStyle}
@@ -160,12 +162,10 @@ class Header extends React.PureComponent {
     );
   };
 
-  _renderModularLeftComponent = (
-    props,
-    ButtonContainerComponent,
-    LabelContainerComponent
-  ) => {
-    const { options } = props.scene.descriptor;
+  _renderModularLeftComponent = (props,
+                                 ButtonContainerComponent,
+                                 LabelContainerComponent) => {
+    const {options} = this.props.getScreenDetails(props.scene);
     const backButtonTitle = this._getBackButtonTitleString(props.scene);
     const truncatedBackButtonTitle = this._getTruncatedBackButtonTitle(
       props.scene
@@ -174,21 +174,14 @@ class Header extends React.PureComponent {
       ? (this.props.layout.initWidth - this.state.widths[props.scene.key]) / 2
       : undefined;
 
-    const goBack = () => {
-      // Go back on next tick because button ripple effect needs to happen on Android
-      requestAnimationFrame(() => {
-        this.props.navigation.goBack(props.scene.descriptor.key);
-      });
-    };
-
     return (
       <ModularHeaderBackButton
-        onPress={goBack}
+        onPress={this._navigateBack}
         ButtonContainerComponent={ButtonContainerComponent}
         LabelContainerComponent={LabelContainerComponent}
         pressColorAndroid={options.headerPressColorAndroid}
         tintColor={options.headerTintColor}
-        backImage={options.headerBackImage}
+        buttonImage={options.headerBackImage}
         title={backButtonTitle}
         truncatedTitle={truncatedBackButtonTitle}
         titleStyle={options.headerBackTitleStyle}
@@ -198,14 +191,15 @@ class Header extends React.PureComponent {
   };
 
   _renderRightComponent = props => {
-    const { headerRight } = props.scene.descriptor.options;
+    const details = this.props.getScreenDetails(props.scene);
+    const {headerRight} = details.options;
     return headerRight || null;
   };
 
   _renderLeft(props) {
-    const { options } = props.scene.descriptor;
+    const {options} = this.props.getScreenDetails(props.scene);
 
-    const { transitionPreset } = this.props;
+    const {transitionPreset} = this.props;
 
     // On Android, or if we have a custom header left, or if we have a custom back image, we
     // do not use the modular header (which is the one that imitates UINavigationController)
@@ -234,7 +228,7 @@ class Header extends React.PureComponent {
 
   _renderTitle(props, options) {
     const style = {};
-    const { transitionPreset } = this.props;
+    const {transitionPreset} = this.props;
 
     if (Platform.OS === 'android') {
       if (!options.hasLeftComponent) {
@@ -253,7 +247,7 @@ class Header extends React.PureComponent {
     }
 
     return this._renderSubView(
-      { ...props, style },
+      {...props, style},
       'title',
       this._renderTitleComponent,
       transitionPreset === 'uikit'
@@ -271,15 +265,13 @@ class Header extends React.PureComponent {
     );
   }
 
-  _renderModularSubView(
-    props,
-    name,
-    renderer,
-    labelStyleInterpolator,
-    buttonStyleInterpolator
-  ) {
-    const { scene } = props;
-    const { index, isStale, key } = scene;
+  _renderModularSubView(props,
+                        name,
+                        renderer,
+                        labelStyleInterpolator,
+                        buttonStyleInterpolator) {
+    const {scene} = props;
+    const {index, isStale, key} = scene;
 
     // Never render a modular back button on the first screen in a stack.
     if (index === 0) {
@@ -294,17 +286,17 @@ class Header extends React.PureComponent {
       return null;
     }
 
-    const ButtonContainer = ({ children }) => (
+    const ButtonContainer = ({children}) => (
       <Animated.View
-        style={[buttonStyleInterpolator({ ...this.props, ...props })]}
+        style={[buttonStyleInterpolator({...this.props, ...props})]}
       >
         {children}
       </Animated.View>
     );
 
-    const LabelContainer = ({ children }) => (
+    const LabelContainer = ({children}) => (
       <Animated.View
-        style={[labelStyleInterpolator({ ...this.props, ...props })]}
+        style={[labelStyleInterpolator({...this.props, ...props})]}
       >
         {children}
       </Animated.View>
@@ -330,8 +322,8 @@ class Header extends React.PureComponent {
   }
 
   _renderSubView(props, name, renderer, styleInterpolator) {
-    const { scene } = props;
-    const { index, isStale, key } = scene;
+    const {scene} = props;
+    const {index, isStale, key} = scene;
 
     const offset = this.props.navigation.state.index - index;
 
@@ -377,11 +369,11 @@ class Header extends React.PureComponent {
       hasRightComponent: !!right,
     });
 
-    const { isLandscape, transitionPreset } = this.props;
-    const { options } = props.scene.descriptor;
+    const {isLandscape, transitionPreset} = this.props;
+    const {options} = this.props.getScreenDetails(props.scene);
 
     const wrapperProps = {
-      style: styles.header,
+      style: [styles.header, {justifyContent: 'center'}],
       key: `scene_${props.scene.key}`,
     };
 
@@ -408,7 +400,7 @@ class Header extends React.PureComponent {
                 source={require('../assets/back-icon-mask.png')}
                 style={styles.iconMask}
               />
-              <View style={styles.iconMaskFillerRect} />
+              <View style={styles.iconMaskFillerRect}/>
             </View>
           }
         >
@@ -422,7 +414,7 @@ class Header extends React.PureComponent {
 
   render() {
     let appBar;
-    const { mode, scene, isLandscape } = this.props;
+    const {mode, scene, isLandscape} = this.props;
 
     if (mode === 'float') {
       const scenesByIndex = {};
@@ -443,8 +435,8 @@ class Header extends React.PureComponent {
       });
     }
 
-    const { options } = scene.descriptor;
-    const { headerStyle = {} } = options;
+    const {options} = this.props.getScreenDetails(scene);
+    const {headerStyle = {}} = options;
     const headerStyleObj = StyleSheet.flatten(headerStyle);
     const appBarHeight = getAppBarHeight(isLandscape);
 
@@ -476,17 +468,17 @@ class Header extends React.PureComponent {
       options.headerTransparent
         ? styles.transparentContainer
         : styles.container,
-      { height: appBarHeight },
+      {height: appBarHeight},
       safeHeaderStyle,
     ];
 
-    const { headerForceInset } = options;
-    const forceInset = headerForceInset || { top: 'always', bottom: 'never' };
+    const {headerForceInset} = options;
+    const forceInset = headerForceInset || {top: 'always', bottom: 'never'};
 
     return (
       <SafeAreaView forceInset={forceInset} style={containerStyles}>
         <View style={StyleSheet.absoluteFill}>{options.headerBackground}</View>
-        <View style={styles.flexOne}>{appBar}</View>
+        <View style={{flex: 1}}>{appBar}</View>
       </SafeAreaView>
     );
   }
@@ -520,7 +512,7 @@ if (Platform.OS === 'ios') {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: Platform.OS === 'ios' ? '#F7F7F7' : '#FFF',
+    backgroundColor: '#ffffff',
     ...platformContainerStyles,
   },
   transparentContainer: {
@@ -557,14 +549,9 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
   },
   title: {
-    bottom: 0,
-    top: 0,
-    left: TITLE_OFFSET,
-    right: TITLE_OFFSET,
-    position: 'absolute',
     alignItems: 'center',
     flexDirection: 'row',
-    justifyContent: Platform.OS === 'ios' ? 'center' : 'flex-start',
+    justifyContent: 'center',
   },
   left: {
     left: 0,
@@ -581,9 +568,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     flexDirection: 'row',
     alignItems: 'center',
-  },
-  flexOne: {
-    flex: 1,
   },
 });
 

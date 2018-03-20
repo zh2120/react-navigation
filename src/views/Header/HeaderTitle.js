@@ -14,10 +14,10 @@ const HeaderTitle = ({ style, ...rest }) => (
 
 const styles = StyleSheet.create({
   title: {
-    fontSize: Platform.OS === 'ios' ? 17 : 20,
-    fontWeight: Platform.OS === 'ios' ? '700' : '500',
-    color: 'rgba(0, 0, 0, .9)',
-    textAlign: Platform.OS === 'ios' ? 'center' : 'left',
+    fontSize: 18,
+    fontWeight: '400',
+    color: '#494949',
+    textAlign: 'center',
     marginHorizontal: 16,
   },
 });
